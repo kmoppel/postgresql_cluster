@@ -1,15 +1,5 @@
 ---
 
-# DNS servers (/etc/resolv.conf)
-nameservers: []
-#  - "8.8.8.8"  # example (Google Public DNS)
-#  - "9.9.9.9"  # (Quad9 Public DNS)
-
-# /etc/hosts (optional)
-etc_hosts: []
-#  - "10.128.64.143 pgbackrest.minio.local minio.local s3.eu-west-3.amazonaws.com"  # example (MinIO)
-#  - ""
-
 ntp_enabled: false  # or 'true' if you want to install and configure the ntp service
 ntp_servers: []
 #  - "10.128.64.44"
@@ -32,17 +22,11 @@ locale_gen:
 # Set system locale (LANG,LC_ALL)
 locale: "en_US.utf-8"
 
-# Configure swap space (if not already exists)
-swap_file_create: true  # or 'false'
-swap_file_path: /swapfile
-swap_file_size_mb: '2048'  # change this value for your system
-
 # Kernel parameters
-sysctl_set: true  # or 'false'
+sysctl_set: false  # or 'false'
 # these parameters for example! Specify kernel options for your system
 sysctl_conf:
   etcd_cluster: []
-  consul_instances: []
   master: []
   replica: []
   pgbackrest: []
@@ -124,52 +108,6 @@ sudo_users:
 #    nopasswd: "no"
 #    commands: "/usr/bin/find, /usr/bin/less, /usr/bin/tail, /bin/kill"
 
-
-# Firewall
-firewall_enabled_at_boot: false  # or 'true' for configure firewall (iptables)
-
-firewall_allowed_tcp_ports_for:
-  master: []
-  replica: []
-  pgbackrest: []
-  postgres_cluster:
-    - "{{ ansible_ssh_port | default(22) }}"
-    - "{{ postgresql_port }}"
-    - "{{ pgbouncer_listen_port }}"
-    - "{{ patroni_restapi_port }}"
-    - "19999"  # Netdata
-#    - "10050"  # Zabbix agent
-#    - ""
-  etcd_cluster:
-    - "{{ ansible_ssh_port | default(22) }}"
-    - "2379"  # ETCD port
-    - "2380"  # ETCD port
-#    - ""
-  consul_instances:
-    - 8300
-    - 8301
-    - 8302
-    - 8500
-    - 8600
-  balancers:
-    - "{{ ansible_ssh_port | default(22) }}"
-    - "{{ haproxy_listen_port.master }}"  # HAProxy (read/write) master
-    - "{{ haproxy_listen_port.replicas }}"  # HAProxy (read only) all replicas
-    - "{{ haproxy_listen_port.replicas_sync }}"  # HAProxy (read only) synchronous replica only
-    - "{{ haproxy_listen_port.replicas_async }}"  # HAProxy (read only) asynchronous replicas only
-    - "{{ haproxy_listen_port.stats }}"  # HAProxy stats
-#    - ""
-
-firewall_additional_rules_for:
-  master: []
-  replica: []
-  postgres_cluster: []
-  pgbackrest: []
-  etcd_cluster: []
-  consul_instances: []
-  balancers:
-    - "iptables -p vrrp -A INPUT -j ACCEPT"  # Keepalived (vrrp)
-    - "iptables -p vrrp -A OUTPUT -j ACCEPT"  # Keepalived (vrrp)
 
 # disable firewalld (installed by default on RHEL/CentOS) or ufw (installed by default on Ubuntu)
 firewall_disable_firewalld: true

@@ -6,25 +6,20 @@ proxy_env: {}  # yamllint disable rule:braces
 #  https_proxy: http://10.128.64.9:3128
 # ---------------------------------------------------------------------
 
-# Cluster variables
-cluster_vip: ""  # IP address for client access to the databases in the cluster (optional).
-vip_interface: "{{ ansible_default_ipv4.interface }}"  # interface name (e.g., "ens32").
-# Note: VIP-based solutions such as keepalived or vip-manager may not function correctly in cloud environments like AWS.
-
-patroni_cluster_name: "postgres-cluster"  # the cluster name (must be unique for each cluster)
+patroni_cluster_name: "pgha1"  # the cluster name (must be unique for each cluster)
 patroni_install_version: "3.2.2"  # or 'latest'
 
 patroni_superuser_username: "postgres"
-patroni_superuser_password: "postgres-pass"  # please change password
+patroni_superuser_password: "postgres"  # please change password
 patroni_replication_username: "replicator"
-patroni_replication_password: "replicator-pass"  # please change password
+patroni_replication_password: "replicator"  # please change password
 
 synchronous_mode: false  # or 'true' for enable synchronous database replication
-synchronous_mode_strict: false  # if 'true' then block all client writes to the master, when a synchronous replica is not available
+synchronous_mode_strict: true  # if 'true' then block all client writes to the master, when a synchronous replica is not available
 synchronous_node_count: 1  # number of synchronous standby databases
 
 # Load Balancing
-with_haproxy_load_balancing: false  # or 'true' if you want to install and configure the load-balancing
+with_haproxy_load_balancing: true  # or 'true' if you want to install and configure the load-balancing
 haproxy_listen_port:
   master: 5000
   replicas: 5001
@@ -46,22 +41,9 @@ haproxy_timeout:
   client: "60m"
   server: "60m"
 
-# keepalived (if 'cluster_vip' is specified and 'with_haproxy_load_balancing' is 'true')
-keepalived_virtual_router_id: "{{ cluster_vip.split('.')[3] | int }}" # The last octet of 'cluster_vip' IP address is used by default.
-# virtual_router_id - must be unique in the network (available values are 0..255).
-
-# vip-manager (if 'cluster_vip' is specified and 'with_haproxy_load_balancing' is 'false')
-vip_manager_version: "2.3.0"  # version to install
-vip_manager_conf: "/etc/patroni/vip-manager.yml"
-vip_manager_interval: "1000"  # time (in milliseconds) after which vip-manager wakes up and checks if it needs to register or release ip addresses.
-vip_manager_iface: "{{ vip_interface }}"  # interface to which the virtual ip will be added
-vip_manager_ip: "{{ cluster_vip }}"  # the virtual ip address to manage
-vip_manager_mask: "24"  # netmask for the virtual ip
-
-
 # DCS (Distributed Consensus Store)
 dcs_exists: false  # or 'true' if you don't want to deploy a new etcd cluster
-dcs_type: "etcd"  # or 'consul'
+dcs_type: "etcd"
 
 # if dcs_type: "etcd" and dcs_exists: false
 etcd_version: "3.5.11"  # version for deploy etcd cluster
@@ -80,68 +62,6 @@ patroni_etcd_protocol: "" # (optional) http or https, if not specified http is u
 
 # more options you can specify in the roles/patroni/templates/patroni.yml.j2
 # https://patroni.readthedocs.io/en/latest/SETTINGS.html#etcd
-# https://patroni.readthedocs.io/en/latest/SETTINGS.html#consul
-
-# if dcs_type: "consul"
-consul_version: "1.15.8"
-consul_config_path: "/etc/consul"
-consul_configd_path: "{{ consul_config_path }}/conf.d"
-consul_data_path: "/var/lib/consul"
-consul_domain: "consul"  # Consul domain name
-consul_datacenter: "dc1"  # Datacenter label (can be specified for each host in the inventory)
-consul_disable_update_check: true  # Disables automatic checking for security bulletins and new version releases
-consul_enable_script_checks: true  # This controls whether health checks that execute scripts are enabled on this agent
-consul_enable_local_script_checks: true  # Enable them when they are defined in the local configuration files
-consul_ui: false  # Enable the consul UI?
-consul_syslog_enable: true  # Enable logging to syslog
-consul_iface: "{{ ansible_default_ipv4.interface }}"  # specify the interface name with a Private IP (ex. "enp7s0")
-# TLS
-# You can enable TLS encryption by dropping a CA certificate, server certificate, and server key in roles/consul/files/
-consul_tls_enable: false
-consul_tls_ca_crt: "ca.crt"
-consul_tls_server_crt: "server.crt"
-consul_tls_server_key: "server.key"
-# DNS
-consul_recursors: []  # List of upstream DNS servers
-consul_dnsmasq_enable: true  # Enable DNS forwarding with Dnsmasq
-consul_dnsmasq_cache: 0  # dnsmasq cache-size (0 - disable caching)
-consul_dnsmasq_servers: "{{ nameservers }}" # Upstream DNS servers used by dnsmasq
-consul_join: []  # List of LAN servers of an existing consul cluster, to join.
-# - "10.128.64.140"
-# - "10.128.64.142"
-# - "10.128.64.143"
-
-# https://developer.hashicorp.com/consul/docs/discovery/services
-consul_services:
-  - name: "{{ patroni_cluster_name }}"
-    id: "{{ patroni_cluster_name }}-master"
-    tags: ['master', 'primary']
-    port: "{{ pgbouncer_listen_port }}"  # or "{{ postgresql_port }}" if pgbouncer_install: false
-    checks:
-      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/primary", interval: "2s" }
-      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }  # comment out this check if pgbouncer_install: false
-  - name: "{{ patroni_cluster_name }}"
-    id: "{{ patroni_cluster_name }}-replica"
-    tags: ['replica']
-    port: "{{ pgbouncer_listen_port }}"
-    checks:
-      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/replica?lag={{ patroni_maximum_lag_on_replica }}", interval: "2s" }
-      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }
-#  - name: "{{ patroni_cluster_name }}"
-#    id: "{{ patroni_cluster_name }}-sync-replica"
-#    tags: ['sync-replica']
-#    port: "{{ pgbouncer_listen_port }}"
-#    checks:
-#      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/sync", interval: "2s" }
-#      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }
-#  - name: "{{ patroni_cluster_name }}"
-#    id: "{{ patroni_cluster_name }}-async-replica"
-#    tags: ['async-replica']
-#    port: "{{ pgbouncer_listen_port }}"
-#    checks:
-#      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/async?lag={{ patroni_maximum_lag_on_replica }}", interval: "2s" }
-#      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }
-
 
 # PostgreSQL variables
 postgresql_version: "16"
@@ -167,10 +87,6 @@ postgresql_databases: []
 #  - { db: "mydatabase2", encoding: "UTF8", lc_collate: "ru_RU.UTF-8", lc_ctype: "ru_RU.UTF-8", owner: "mydb-user", conn_limit: "50" }
 #  - { db: "", encoding: "UTF8", lc_collate: "en_US.UTF-8", lc_ctype: "en_US.UTF-8", owner: "" }
 #  - { db: "", encoding: "UTF8", lc_collate: "en_US.UTF-8", lc_ctype: "en_US.UTF-8", owner: "" }
-
-# (optional) list of schemas to be created (if not already exists)
-postgresql_schemas: []
-#  - { schema: "myschema", db: "mydatabase", owner: "mydb-user" }
 
 # (optional) list of database extensions to be created (if not already exists)
 postgresql_extensions: []
@@ -274,7 +190,7 @@ postgresql_parameters:
 # Set this variable to 'true' if you want the cluster to be automatically restarted
 # after changing the 'postgresql_parameters' variable that requires a restart in the 'config_pgcluster.yml' playbook.
 # By default, the cluster will not be automatically restarted.
-pending_restart: false
+pending_restart: true
 
 # specify additional hosts that will be added to the pg_hba.conf
 postgresql_pg_hba:
@@ -286,11 +202,6 @@ postgresql_pg_hba:
   - { type: "host", database: "all", user: "all", address: "::1/128", method: "{{ postgresql_password_encryption_algorithm }}" }
 #  - { type: "host", database: "mydatabase", user: "mydb-user", address: "192.168.0.0/24", method: "{{ postgresql_password_encryption_algorithm }}" }
 #  - { type: "host", database: "all", user: "all", address: "192.168.0.0/24", method: "ident", options: "map=main" }  # use pg_ident
-
-# list of lines that Patroni will use to generate pg_ident.conf
-postgresql_pg_ident: []
-#  - { mapname: "main", system_username: "postgres", pg_username: "backup" }
-#  - { mapname: "", system_username: "", pg_username: "" }
 
 # the password file (~/.pgpass)
 postgresql_pgpass:
@@ -335,7 +246,7 @@ patroni_ttl: 30
 patroni_loop_wait: 10
 patroni_retry_timeout: 10
 patroni_master_start_timeout: 300
-patroni_maximum_lag_on_failover: 1048576 # (1MB) the maximum bytes a follower may lag to be able to participate in leader election.
+patroni_maximum_lag_on_failover: 131072 # (128kB) the maximum bytes a follower may lag to be able to participate in leader election.
 patroni_maximum_lag_on_replica: "100MB" # the maximum of lag that replica can be in order to be available for read-only queries.
 
 # https://patroni.readthedocs.io/en/latest/SETTINGS.html?highlight=callbacks#dynamic-configuration-settings
@@ -390,33 +301,21 @@ patroni_cluster_bootstrap_method: "initdb"  # or "wal-g", "pgbackrest", "pg_prob
 # https://patroni.readthedocs.io/en/latest/replica_bootstrap.html#building-replicas
 patroni_create_replica_methods:
 #  - pgbackrest
-#  - wal_g
-#  - pg_probackup
   - basebackup
 
 pgbackrest:
   - { option: "command", value: "/usr/bin/pgbackrest --stanza={{ pgbackrest_stanza }} --delta restore" }
   - { option: "keep_data", value: "True" }
   - { option: "no_params", value: "True" }
-wal_g:
-  - { option: "command", value: "wal-g backup-fetch {{ postgresql_data_dir }} LATEST" }
-  - { option: "no_params", value: "True" }
 basebackup:
   - { option: "max-rate", value: "100M" }
   - { option: "checkpoint", value: "fast" }
 #  - { option: "waldir", value: "{{ postgresql_wal_dir }}" }
-pg_probackup:
-  - { option: "command", value: "{{ pg_probackup_restore_command }}" }
-  - { option: "no_params", value: "true" }
 
 # "restore_command" written to recovery.conf when configuring follower (create replica)
 postgresql_restore_command: ""
-# postgresql_restore_command: "wal-g wal-fetch %f %p"  # restore WAL-s using WAL-G
 # postgresql_restore_command: "pgbackrest --stanza={{ pgbackrest_stanza }} archive-get %f %p"  # restore WAL-s using pgbackrest
 
-# postgresql_restore_command: "pg_probackup-{{ pg_probackup_version }} archive-get -B
-# {{ pg_probackup_dir }} --instance {{ pg_probackup_instance }} --wal-file-path=%p
-# --wal-file-name=%f"  # restore WAL-s using pg_probackup
 
 # pg_probackup
 pg_probackup_install: false  # or 'true'
@@ -435,54 +334,6 @@ pg_probackup_command_parts:
   - " {{ pg_probackup_add_keys }}"
 pg_probackup_restore_command: "{{ pg_probackup_command_parts | join('') }}"
 pg_probackup_patroni_cluster_bootstrap_command: "{{ pg_probackup_command_parts | join('') }}"
-
-# WAL-G
-wal_g_install: false  # or 'true'
-wal_g_version: "2.0.1"
-wal_g_json:  # config https://github.com/wal-g/wal-g#configuration
-  - { option: "AWS_ACCESS_KEY_ID", value: "{{ AWS_ACCESS_KEY_ID | default('') }}" }  # define values or pass via --extra-vars
-  - { option: "AWS_SECRET_ACCESS_KEY", value: "{{ AWS_SECRET_ACCESS_KEY | default('') }}" }  # define values or pass via --extra-vars
-  - { option: "WALG_S3_PREFIX", value: "{{ WALG_S3_PREFIX | default('') }}" } # define values or pass via --extra-vars
-  - { option: "WALG_COMPRESSION_METHOD", value: "brotli" }  # or "lz4", "lzma", "zstd"
-  - { option: "WALG_DELTA_MAX_STEPS", value: "6" }  # determines how many delta backups can be between full backups
-  - { option: "PGDATA", value: "{{ postgresql_data_dir }}" }
-  - { option: "PGHOST", value: "{{ postgresql_unix_socket_dir }}" }
-  - { option: "PGPORT", value: "{{ postgresql_port }}" }
-  - { option: "PGUSER", value: "{{ patroni_superuser_username }}" }
-#  - { option: "AWS_S3_FORCE_PATH_STYLE", value: "true" }  # to use Minio.io S3-compatible storage
-#  - { option: "AWS_ENDPOINT", value: "http://minio:9000" }  # to use Minio.io S3-compatible storage
-#  - { option: "", value: "" }
-wal_g_archive_command: "wal-g wal-push %p"
-wal_g_patroni_cluster_bootstrap_command: "wal-g backup-fetch {{ postgresql_data_dir }} LATEST"
-
-# Define job_parts outside of wal_g_cron_jobs
-# ⚠️ Ensure there is a space at the beginning of each part to prevent commands from concatenating.
-wal_g_backup_command:
-  - "[ $(curl -s -o /dev/null -w '%{http_code}' http://{{ inventory_hostname }}:{{ patroni_restapi_port }}) = '200' ]"
-  - " && wal-g backup-push {{ postgresql_data_dir }} > {{ postgresql_log_dir }}/walg_backup.log 2>&1"
-wal_g_delete_command:
-  - "[ $(curl -s -o /dev/null -w '%{http_code}' http://{{ inventory_hostname }}:{{ patroni_restapi_port }}) = '200' ]"
-  - " && wal-g delete retain FULL 4 --confirm > {{ postgresql_log_dir }}/walg_delete.log 2>&1"
-
-wal_g_cron_jobs:
-  - name: "WAL-G: Create daily backup"
-    user: "postgres"
-    file: /etc/cron.d/walg
-    minute: "30"
-    hour: "3"
-    day: "*"
-    month: "*"
-    weekday: "*"
-    job: "{{ wal_g_backup_command | join('') }}"
-  - name: "WAL-G: Delete old backups" # retain 4 full backups (adjust according to your company's backup retention policy)
-    user: "postgres"
-    file: /etc/cron.d/walg
-    minute: "30"
-    hour: "6"
-    day: "*"
-    month: "*"
-    weekday: "*"
-    job: "{{ wal_g_delete_command | join('') }}"
 
 # pgBackRest
 pgbackrest_install: false  # or 'true'
@@ -578,16 +429,5 @@ pgbackrest_cron_jobs:
 
 disable_archive_command: true  # or 'false' to not disable archive_command after restore
 keep_patroni_dynamic_json: true  # or 'false' to remove patroni.dynamic.json after restore (if exists)
-
-
-# Netdata - https://github.com/netdata/netdata
-netdata_install: false  # or 'true' for install Netdata on postgresql cluster nodes (with kickstart.sh)
-netdata_install_options: "--stable-channel --disable-telemetry --dont-wait"
-netdata_conf:
-  web_bind_to: "*"
-  # https://learn.netdata.cloud/docs/store/change-metrics-storage
-  memory_mode: "dbengine"  # The long-term metrics storage with efficient RAM and disk usage.
-  page_cache_size: 64  # Determines the amount of RAM in MiB that is dedicated to caching Netdata metric values.
-  dbengine_disk_space: 1024  # Determines the amount of disk space in MiB that is dedicated to storing Netdata metric values.
 
 ...
