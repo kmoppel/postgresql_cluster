@@ -94,33 +94,7 @@
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
       tags: always
 
-    - name: Build a firewall_ports_dynamic_var
-      ansible.builtin.set_fact:
-        firewall_ports_dynamic_var: "{{ firewall_ports_dynamic_var | default([]) + (firewall_allowed_tcp_ports_for[item] | default([])) }}"
-      loop: "{{ hostvars[inventory_hostname].group_names }}"
-      when: firewall_enabled_at_boot | bool
-      tags: config_firewall, firewall
-
-    - name: Build a firewall_rules_dynamic_var
-      ansible.builtin.set_fact:
-        firewall_rules_dynamic_var: "{{ firewall_rules_dynamic_var | default([]) + (firewall_additional_rules_for[item] | default([])) }}"
-      loop: "{{ hostvars[inventory_hostname].group_names }}"
-      when: firewall_enabled_at_boot | bool
-      tags: firewall
-
-    # if 'dcs_type' is 'consul'
-    - name: Add a nameserver entry poining to localhost for dnsmasq
-      ansible.builtin.set_fact:
-        nameservers: "{{ ['127.0.0.1'] + (nameservers | default([])) }}"
-      when: dcs_type == "consul" and consul_dnsmasq_enable | bool and ('127.0.0.1' not in (nameservers | default([])))
-
   roles:
-    - role: ansible-role-firewall
-      vars:
-        firewall_allowed_tcp_ports: "{{ firewall_ports_dynamic_var | default([]) | unique }}"
-        firewall_additional_rules: "{{ firewall_rules_dynamic_var | default([]) | unique }}"
-      when: firewall_enabled_at_boot | bool
-      tags: firewall
 
     - role: hostname
     - role: resolv_conf
