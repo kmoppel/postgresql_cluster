@@ -67,14 +67,14 @@
     - role: pre-checks
       vars:
         minimal_ansible_version: 2.11.0
-        timescale_minimal_pg_version: 12 # if enable_timescale is defined
+        timescale_minimal_pg_version: 12  # if enable_timescale is defined
   tags:
     - always
 
 - name: config_pgcluster.yml | Configure Postgres Cluster
   hosts: 'primary:secondary'
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
   environment: "{{ proxy_env | default({}) }}"
@@ -96,73 +96,21 @@
 
   roles:
 
-    - role: hostname
-    - role: resolv_conf
-    - role: etc_hosts
-    - role: timezone
-    - role: add-repository
-    - role: packages
-    - role: sudo
-    - role: swap
-    - role: sysctl
-    - role: transparent_huge_pages
-    - role: pam_limits
-    - role: io-scheduler
-    - role: locales
-    - role: ntp
-    - role: ssh-keys
-    - role: copy
-    - role: pgpass
-    - role: cron
-
     - role: patroni/config
 
     - role: pgbouncer/config
       when: pgbouncer_install | bool
 
-    - role: vip-manager
-      when: not with_haproxy_load_balancing | bool and
-        (cluster_vip is defined and cluster_vip | length > 0)
-
-    - role: postgresql-users
-      when: inventory_hostname in groups['primary']
-
-    - role: postgresql-databases
-      when: inventory_hostname in groups['primary']
-
-    - role: postgresql-schemas
-      when: inventory_hostname in groups['primary']
-
     - role: postgresql-extensions
       when: inventory_hostname in groups['primary']
 
-    - role: wal-g
-      when: wal_g_install | bool
-
-- name: config_pgcluster | Configure pgBackRest
-  hosts: pgbackrest:postgres_cluster
-  become: true
-  become_method: sudo
-  gather_facts: true
-  any_errors_fatal: true
-  pre_tasks:
-    - name: Include main variables
-      ansible.builtin.include_vars: "vars/main.yml"
-      tags: always
-
-    - name: Include OS-specific variables
-      ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
-      tags: always
-  roles:
-    - role: pgbackrest
-      when: pgbackrest_install | bool
 
 - name: config_pgcluster.yml | Restart patroni on secondary after config settings if need
   hosts: secondary
-  serial: 1 # restart replicas one by one
+  serial: 1  # restart replicas one by one
   gather_facts: false
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   any_errors_fatal: true
   pre_tasks:
     - name: Include main variables
@@ -212,7 +160,7 @@
   hosts: primary
   gather_facts: false
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   any_errors_fatal: true
   environment: "{{ proxy_env | default({}) }}"
   pre_tasks:
@@ -270,7 +218,7 @@
 - name: config_pgcluster.yml | PostgreSQL Cluster Info
   hosts: primary
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
   pre_tasks:
