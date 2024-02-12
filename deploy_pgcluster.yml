@@ -141,10 +141,10 @@
     - role: add-repository
     - role: packages
     - role: sudo
-    - role: sysctl
+    # - role: sysctl
     - role: transparent_huge_pages
     - role: pam_limits
-    - role: io-scheduler
+    # - role: io-scheduler
     - role: locales
     - role: timezone
     - role: ntp
@@ -179,7 +179,7 @@
 - name: deploy_pgcluster.yml | PostgreSQL Cluster Deployment
   hosts: postgres_cluster
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
   handlers:
@@ -199,11 +199,6 @@
       tags: always
 
   roles:
-    - role: wal-g
-      when: wal_g_install|bool
-
-    - role: pg_probackup
-      when: pg_probackup_install|bool
 
     - role: cron
 
@@ -217,28 +212,18 @@
     - role: pgbackrest/stanza-create
       when: pgbackrest_install|bool
 
-    - role: vip-manager
-      when: not with_haproxy_load_balancing|bool and
-        (cluster_vip is defined and cluster_vip | length > 0)
-
     # optional
     - role: postgresql-users
       when: is_master | bool and postgresql_users | length > 0
 
-    - role: postgresql-databases
-      when: is_master | bool and postgresql_databases | length > 0
-
-    - role: postgresql-schemas
-      when: is_master | bool and postgresql_schemas | length > 0
+    # - role: postgresql-databases
+    #   when: is_master | bool and postgresql_databases | length > 0
 
     - role: postgresql-extensions
       when: is_master | bool and postgresql_extensions | length > 0
 
     - role: pgbouncer/config
       when: pgbouncer_install|bool
-
-    - role: netdata
-      when: netdata_install is defined and netdata_install|bool
 
     # finish (info)
     - role: deploy-finish
