@@ -177,8 +177,6 @@
   become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
-  handlers:
-    - ansible.builtin.import_tasks: roles/pgbouncer/handlers/main.yml
 
   pre_tasks:
     - name: Include main variables
@@ -197,9 +195,6 @@
 
     - role: cron
 
-    - role: pgbouncer
-      when: pgbouncer_install|bool
-
     - role: pgpass
 
     - role: patroni
@@ -216,9 +211,6 @@
 
     - role: postgresql-extensions
       when: is_master | bool and postgresql_extensions | length > 0
-
-    - role: pgbouncer/config
-      when: pgbouncer_install|bool
 
     # finish (info)
     - role: deploy-finish

@@ -80,72 +80,6 @@
   ignore_errors: true
   tags: patroni_status, cluster_info, cluster_status, point_in_time_recovery
 
-# connection info
-- block:  # if cluster_vip is defined
-    - name: PostgreSQL Cluster connection info
-      run_once: true
-      ansible.builtin.debug:
-        msg:
-          - +------------------------------------------------+
-          - address (VIP) {{ cluster_vip }}
-          - port {{ haproxy_listen_port.master }} (read/write) master
-          - port {{ haproxy_listen_port.replicas }} (read only)  all replicas
-          - port {{ haproxy_listen_port.replicas_sync }} (read only)  synchronous replica only
-          - port {{ haproxy_listen_port.replicas_async }} (read only)  asynchronous replicas only
-          - +------------------------------------------------+
-      when:
-        - with_haproxy_load_balancing | bool
-        - synchronous_mode | bool
-
-    - name: PostgreSQL Cluster connection info
-      run_once: true
-      ansible.builtin.debug:
-        msg:
-          - +------------------------------------------------+
-          - address (VIP) {{ cluster_vip }}
-          - port {{ haproxy_listen_port.master }} (read/write) master
-          - port {{ haproxy_listen_port.replicas }} (read only)  all replicas
-          - +------------------------------------------------+
-      when:
-        - with_haproxy_load_balancing | bool
-        - not synchronous_mode | bool
-
-    - name: PostgreSQL Cluster connection info
-      run_once: true
-      ansible.builtin.debug:
-        msg:
-          - +------------------------------------------------+
-          - address (VIP) {{ cluster_vip }}
-          - port {% if pgbouncer_install %}{{ pgbouncer_listen_port }} (pgbouncer){% else %}{{ postgresql_port }}{% endif %}
-          - +------------------------------------------------+
-      when:
-        - not with_haproxy_load_balancing | bool
-  when:
-    - (cluster_vip is defined and cluster_vip | length > 0)
-    - dcs_type == "etcd"
-  ignore_errors: true
-  tags: conn_info, cluster_info, cluster_status
-
-- block:
-    - name: Get vip info
-      ansible.builtin.set_fact:
-        man_ip: "{{ item }}"
-      loop: "{{ ansible_all_ipv4_addresses }}"
-      when: item == cluster_vip
-
-    - name: Virtual IP Address (VIP) info
-      ansible.builtin.debug:
-        msg:
-          "Cluster ip address (VIP) {{ cluster_vip }}
-           is running on server {{ ansible_hostname }}"
-      when: man_ip is defined and man_ip == cluster_vip
-  when:
-    - (cluster_vip is defined and cluster_vip | length > 0)
-    - dcs_type == "etcd"
-  ignore_errors: true
-  tags: vip_owner, vip_status, cluster_info, cluster_status
-
-
 - block:  # if cluster_vip is not defined
     - name: Create list of nodes
       run_once: true
@@ -199,43 +133,11 @@
         msg:
           - +------------------------------------------------+
           - address {{ postgres_cluster_nodes }}
-          - port {% if pgbouncer_install %}{{ pgbouncer_listen_port }} (pgbouncer){% else %}{{ postgresql_port }}{% endif %}
+          - port {{ postgresql_port }}
           - +------------------------------------------------+
       when:
         - not with_haproxy_load_balancing | bool
   ignore_errors: true
-  when:
-    - (cluster_vip is not defined or cluster_vip | length < 1)
-    - dcs_type == "etcd"
   tags: conn_info, cluster_info, cluster_status
-
-
-- block:  # if dcs_type: "consul"
-    - name: PostgreSQL Cluster connection info
-      run_once: true
-      ansible.builtin.debug:
-        msg:
-          - +------------------------------------------------+
-          - "Client access point (DNS):"
-          - " master.{{ patroni_cluster_name }}.service.consul "
-          - " replica.{{ patroni_cluster_name }}.service.consul "
-          - port {% if pgbouncer_install %}{{ pgbouncer_listen_port }} (pgbouncer){% else %}{{ postgresql_port }}{% endif %}
-          - +------------------------------------------------+
-      when: not synchronous_mode | bool
-
-    - name: PostgreSQL Cluster connection info
-      run_once: true
-      ansible.builtin.debug:
-        msg:
-          - +------------------------------------------------+
-          - "Client access point (DNS):"
-          - " master.{{ patroni_cluster_name }}.service.consul "
-          - " replica.{{ patroni_cluster_name }}.service.consul "
-          - " sync-replica.{{ patroni_cluster_name }}.service.consul "
-          - " async-replica.{{ patroni_cluster_name }}.service.consul "
-          - port {% if pgbouncer_install %}{{ pgbouncer_listen_port }} (pgbouncer){% else %}{{ postgresql_port }}{% endif %}
-          - +------------------------------------------------+
-      when: synchronous_mode | bool
-  when: dcs_type == "consul"
 
 ...

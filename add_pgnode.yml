@@ -188,9 +188,6 @@
 
   roles:
 
-    - role: pgbouncer
-      when: pgbouncer_install|bool
-
     - role: pgpass
 
     - role: patroni

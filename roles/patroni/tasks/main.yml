@@ -346,7 +346,7 @@
       loop_control:
         loop_var: patroni_config_without_cluster_vip_item
         label: "{{ patroni_config_without_cluster_vip_item.line }}"
-      when: with_haproxy_load_balancing|bool or pgbouncer_install|bool or (cluster_vip is not defined or cluster_vip | length < 1)
+      when: with_haproxy_load_balancing|bool or (cluster_vip is not defined or cluster_vip | length < 1)
 
     - name: Prepare patroni.yml conf file (replace "name","listen","connect_address")
       ansible.builtin.lineinfile:
@@ -368,7 +368,7 @@
       loop_control:
         loop_var: patroni_config_with_cluster_vip_item
         label: "{{ patroni_config_with_cluster_vip_item.line }}"
-      when: not with_haproxy_load_balancing|bool and not pgbouncer_install|bool and (cluster_vip is defined and cluster_vip | length > 0)
+      when: not with_haproxy_load_balancing|bool and (cluster_vip is defined and cluster_vip | length > 0)
   when: existing_pgcluster is defined and existing_pgcluster|bool
   tags: patroni, patroni_conf
 

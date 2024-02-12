@@ -80,7 +80,6 @@
   environment: "{{ proxy_env | default({}) }}"
   handlers:
     - ansible.builtin.import_tasks: roles/patroni/handlers/main.yml
-    - ansible.builtin.import_tasks: roles/pgbouncer/handlers/main.yml
   pre_tasks:
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
@@ -97,9 +96,6 @@
   roles:
 
     - role: patroni/config
-
-    - role: pgbouncer/config
-      when: pgbouncer_install | bool
 
     - role: postgresql-extensions
       when: inventory_hostname in groups['primary']

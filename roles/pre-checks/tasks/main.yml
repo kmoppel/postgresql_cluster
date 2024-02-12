@@ -24,13 +24,6 @@
     - enable_timescale | bool
     - inventory_hostname in groups['postgres_cluster']
 
-- name: Perform pre-checks for pgbouncer
-  ansible.builtin.import_tasks: pgbouncer.yml
-  when:
-    - pgbouncer_install is defined
-    - pgbouncer_install | bool
-    - inventory_hostname in groups['postgres_cluster']
-
 - name: Perform pre-checks for patroni
   ansible.builtin.import_tasks: patroni.yml
   when:
