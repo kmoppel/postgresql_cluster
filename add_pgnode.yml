@@ -2,7 +2,7 @@
 - name: add_pgnode.yml | PostgreSQL HA Cluster Scaling (add a replica node)
   hosts: postgres_cluster
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   any_errors_fatal: true
   gather_facts: true
   handlers:
@@ -109,7 +109,7 @@
 - name: add_pgnode.yml | Configure new PostgreSQL node
   hosts: new_replica
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
 
@@ -134,15 +134,11 @@
 
   roles:
     - role: hostname
-    - role: resolv_conf
-    - role: etc_hosts
     - role: add-repository
     - role: packages
     - role: sudo
-    - role: swap
     - role: transparent_huge_pages
     - role: pam_limits
-    - role: io-scheduler
     - role: locales
     - role: timezone
     - role: ntp
@@ -152,7 +148,7 @@
 - name: add_pgnode.yml | Configure pgBackRest
   hosts: pgbackrest:postgres_cluster
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
   pre_tasks:
@@ -168,15 +164,10 @@
     - role: pgbackrest
       when: pgbackrest_install|bool
 
-- name: add_pgnode.yml | Import Consul playbook
-  ansible.builtin.import_playbook: consul.yml
-  when: dcs_type == "consul"
-  tags: consul
-
 - name: add_pgnode.yml | Add new PostgreSQL replica to the cluster
   hosts: new_replica
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
   vars:
@@ -196,11 +187,6 @@
       tags: always
 
   roles:
-    - role: wal-g
-      when: wal_g_install|bool
-
-    - role: pg_probackup
-      when: pg_probackup_install|bool
 
     - role: pgbouncer
       when: pgbouncer_install|bool
@@ -208,13 +194,6 @@
     - role: pgpass
 
     - role: patroni
-
-    - role: vip-manager
-      when: not with_haproxy_load_balancing|bool and
-        (cluster_vip is defined and cluster_vip | length > 0)
-
-    - role: netdata
-      when: netdata_install is defined and netdata_install|bool
 
     # finish (info)
     - role: deploy-finish
