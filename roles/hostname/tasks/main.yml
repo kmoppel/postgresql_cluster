@@ -1,20 +1,7 @@
 ---
 
-- block:
-    - name: Change hostname
-      ansible.builtin.hostname:
-        name: "{{ hostname }}"
-
-    - name: Change hostname in /etc/hosts
-      ansible.builtin.lineinfile:
-        dest: /etc/hosts
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-        state: present
-      no_log: true
-      loop:
-        - { regexp: '^127\.0\.0\.1[ \t]+localhost', line: '127.0.0.1 localhost {{ ansible_hostname }}' }
-  when: hostname is defined and hostname | length > 0
-  tags: hostname
+- name: Set a cluster + random hostname for better visual orientation when on the node  # TODO add something to hint at pure etcd nodes
+  ansible.builtin.hostname:
+    name: "{{ patroni_cluster_name | replace('.', '-') | replace('_', '-') }}-{{ inventory_hostname | md5 | truncate(6, end='') }}"
 
 ...

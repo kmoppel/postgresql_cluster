@@ -46,10 +46,7 @@
   roles:
 
     - role: hostname
-    - role: resolv_conf
     - role: etc_hosts
-    - role: sysctl
     - role: timezone
     - role: ntp
-
     - role: etcd
