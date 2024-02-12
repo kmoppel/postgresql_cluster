@@ -111,15 +111,10 @@
       retries: 3
       when: ansible_os_family == "Debian"
 
-- name: deploy_pgcluster.yml | Deploy etcd cluster
-  ansible.builtin.import_playbook: etcd_cluster.yml
-  when: not dcs_exists|bool and dcs_type == "etcd"
-  tags: etcd
-
-- name: deploy_pgcluster.yml | Postgres Cluster Configuration
+- name: Postgres Cluster Configuration
   hosts: postgres_cluster
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
   gather_facts: true
   any_errors_fatal: true
 

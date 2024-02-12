@@ -212,7 +212,7 @@ postgresql_pgpass:
 
 
 # PgBouncer parameters
-pgbouncer_install: true  # or 'false' if you do not want to install and configure the pgbouncer service
+pgbouncer_install: false  # or 'false' if you do not want to install and configure the pgbouncer service
 pgbouncer_processes: 1  # Number of pgbouncer processes to be used. Multiple processes use the so_reuseport option for better performance.
 pgbouncer_conf_dir: "/etc/pgbouncer"
 pgbouncer_log_dir: "/var/log/pgbouncer"
@@ -230,7 +230,7 @@ pgbouncer_ignore_startup_parameters: "extra_float_digits,geqo,search_path"
 pgbouncer_auth_type: "{{ postgresql_password_encryption_algorithm }}"
 pgbouncer_auth_user: true # or 'false' if you want to manage the list of users for authentication in the database via userlist.txt
 pgbouncer_auth_username: pgbouncer # user who can query the database via the user_search function
-pgbouncer_auth_password: "pgbouncer-pass" # please change password
+pgbouncer_auth_password: pgbouncer # please change password
 pgbouncer_auth_dbname: "postgres"
 
 pgbouncer_pools:
