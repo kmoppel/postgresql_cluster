@@ -22,6 +22,11 @@
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
       tags: always
 
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yml"
+      ignore_errors: yes
+      tags: always
+
     - name: System information
       ansible.builtin.debug:
         var: system_info
@@ -131,6 +136,11 @@
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
       tags: always
 
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
+      tags: always
+
   roles:
     - role: hostname
     - role: add-repository
@@ -167,6 +177,11 @@
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
       tags: always
 
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
+      tags: always
+
   roles:
     - role: pgbackrest
       when: pgbackrest_install|bool
@@ -189,6 +204,11 @@
 
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+      tags: always
+
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
       tags: always
 
   roles:

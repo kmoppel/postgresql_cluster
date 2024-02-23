@@ -12,6 +12,11 @@
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
 
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
+      tags: always
+
     - name: '[Prepare] Set maintenance variable'
       ansible.builtin.set_fact:
         postgresql_cluster_maintenance: true
@@ -93,6 +98,11 @@
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
       tags: always
 
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
+      tags: always
+
   roles:
 
     - role: patroni/config
@@ -115,6 +125,11 @@
 
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+      tags: always
+
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
       tags: always
 
   tasks:
@@ -166,6 +181,11 @@
 
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+      tags: always
+
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
       tags: always
 
   tasks:
@@ -225,6 +245,12 @@
     - name: Include system variables
       ansible.builtin.include_vars: "vars/system.yml"
       tags: always
+
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: yes
+      tags: always
+
   roles:
     # finish (info)
     - role: deploy-finish
