@@ -35,9 +35,6 @@
       ansible.builtin.debug:
         msg: "WARNING - removing node {{ removed_node }}, Postgres data and backup directories will be deleted !!!"
       when: inventory_hostname == removed_node
-    - name: Sleeping 5s
-      ansible.builtin.pause:
-        seconds: 5
     - block:
         - name: Stop Patroni service
           ansible.builtin.service:
