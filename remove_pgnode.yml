@@ -1,0 +1,65 @@
+---
+- name: remove_pgnode.yml | Remove PostgreSQL HA Cluster
+  hosts: replica
+  become: true
+  pre_tasks:
+    - name: Include main variables
+      ansible.builtin.include_vars: "vars/main.yml"
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+    - name: Include LPP engine vars
+      ansible.builtin.include_vars: "input/vars.yaml"
+      ignore_errors: true
+
+    - name: "[Pre-Check] Check if there is a node with remove_node set to true"
+      ansible.builtin.set_fact:
+        removed_nodes: "{{ removed_nodes | default([]) + [item] }}"
+      when: hostvars[item]['remove_node'] | default(false) | bool
+      loop: "{{ groups['replica'] }}"
+      tags: always
+
+    - name: Need exactly one removed_nodes group host
+      ansible.builtin.fail:
+        msg: "Exactly one remove_node host_var expected!"
+      when: removed_nodes | length != 1
+
+    - name: Set removed_node
+      ansible.builtin.set_fact:
+        removed_node: "{{ removed_nodes[0] }}"
+
+  tasks:
+
+    - name: Warn
+      ansible.builtin.debug:
+        msg: "WARNING - removing node {{ removed_node }}, Postgres data and backup directories will be deleted !!!"
+      when: inventory_hostname == removed_node
+    - name: Sleeping 5s
+      ansible.builtin.pause:
+        seconds: 5
+    - block:
+        - name: Stop Patroni service
+          ansible.builtin.service:
+            name: patroni
+            state: stopped
+            enabled: false
+        - name: Delete PostgreSQL database content
+          ansible.builtin.file:
+            path: "{{ postgresql_data_dir }}"
+            state: absent
+      when: inventory_hostname == removed_node
+    - block:
+        - name: Delete PgBackRest repository
+          ansible.builtin.file:
+            # path: pgbackrest_conf global repo1-path
+            path: /var/lib/pgbackrest
+            state: absent
+        - name: Delete PgBackRest cron
+          ansible.builtin.file:
+            path: /etc/cron.d/pgbackrest
+            state: absent
+      when:
+        - when: inventory_hostname == removed_node
+        - pgbackrest_install | default(false) | bool
+      ignore_errors: true
