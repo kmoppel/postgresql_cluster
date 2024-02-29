@@ -60,6 +60,6 @@
             path: /etc/cron.d/pgbackrest
             state: absent
       when:
-        - when: inventory_hostname == removed_node
+        - inventory_hostname == removed_node
         - pgbackrest_install | default(false) | bool
       ignore_errors: true
