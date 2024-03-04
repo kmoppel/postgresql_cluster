@@ -248,9 +248,11 @@
 
     - name: Include LPP engine vars
       ansible.builtin.include_vars: "input/vars.yaml"
-      ignore_errors: yes
       tags: always
 
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+      tags: always
   roles:
     # finish (info)
     - role: deploy-finish

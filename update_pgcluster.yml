@@ -57,15 +57,16 @@
   become: true
   become_user: postgres
   any_errors_fatal: true
-  vars:
-    max_replication_lag_bytes: 10485760 # 10 MiB
-    max_transaction_sec: 15 # seconds
   pre_tasks:
+    - name: Include role variables
+      ansible.builtin.include_vars: "roles/update/vars/main.yml"
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
     - name: Include LPP engine vars
       ansible.builtin.include_vars: "input/vars.yml"
       ignore_errors: yes
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
   tasks:
     - name: Running Pre-Checks
       ansible.builtin.include_role:
@@ -83,9 +84,9 @@
   become_method: sudo
   any_errors_fatal: true
   environment: "{{ proxy_env | default({}) }}"
-  vars:
-    target: postgres # or 'patroni', 'system'
   pre_tasks:
+    - name: Include role variables
+      ansible.builtin.include_vars: "roles/update/vars/main.yml"
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
     - name: Include OS-specific variables
@@ -143,9 +144,9 @@
   become_method: sudo
   any_errors_fatal: true
   environment: "{{ proxy_env | default({}) }}"
-  vars:
-    target: postgres # or 'patroni', 'system'
   pre_tasks:
+    - name: Include role variables
+      ansible.builtin.include_vars: "roles/update/vars/main.yml"
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
     - name: Include OS-specific variables
@@ -208,15 +209,17 @@
   become: true
   become_user: postgres
   any_errors_fatal: true
-  vars:
-    update_extensions: true # or 'false', to avoid updating extensions
   pre_tasks:
+    - name: Include role variables
+      ansible.builtin.include_vars: "roles/update/vars/main.yml"
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
     - name: Include LPP engine vars
       ansible.builtin.include_vars: "input/vars.yml"
       ignore_errors: yes
       tags: always      
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
   tasks:
     - name: Update extensions
       ansible.builtin.include_role:
@@ -225,6 +228,15 @@
       when: update_extensions | bool
 
     # finish (info)
+    - name: Check for any update failure
+      run_once: true # noqa run-once
+      ansible.builtin.set_fact:
+        any_update_failed: "{{ any_update_failed | default(false) or
+          hostvars[item].update_postgres_failed | default(false) or
+          hostvars[item].update_patroni_failed | default(false) or
+          hostvars[item].update_system_failed | default(false) }}"
+      loop: "{{ groups['postgres_cluster'] }}"
+
     - name: Check the Patroni cluster state
       run_once: true # noqa run-once
       become: true
@@ -238,7 +250,7 @@
     - name: Check the current PostgreSQL version
       run_once: true # noqa run-once
       ansible.builtin.command: >-
-        psql -p {{ postgresql_port }} -U {{ patroni_superuser_username }} -d postgres -tAXc
+        {{ postgresql_bin_dir }}/psql -p {{ postgresql_port }} -U {{ patroni_superuser_username }} -d postgres -tAXc
         "select current_setting('server_version')"
       register: postgres_version
       changed_when: false
@@ -249,13 +261,23 @@
         msg: "{{ patronictl_result.stdout_lines }}"
       when: patronictl_result.stdout_lines is defined
 
+    # if there are no update errors
     - name: Update completed
       run_once: true # noqa run-once
       ansible.builtin.debug:
         msg:
           - "PostgreSQL HA cluster update completed."
           - "Current version: {{ postgres_version.stdout }}"
-      when: postgres_version.stdout is defined
+      when: not any_update_failed
+
+    # if there were errors during the update
+    - name: Update completed with error
+      run_once: true # noqa run-once
+      ansible.builtin.debug:
+        msg:
+          - "Update of PostgreSQL HA cluster completed with errors. Check the Ansible log."
+          - "Current version: {{ postgres_version.stdout }}"
+      when: any_update_failed
   tags:
     - update
     - update-extensions
