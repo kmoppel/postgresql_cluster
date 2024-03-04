@@ -10,7 +10,7 @@
       ansible.builtin.include_vars: "vars/main.yml"
       tags: always
     - name: Include LPP engine vars
-      ansible.builtin.include_vars: "input/vars.yml"
+      ansible.builtin.include_vars: "input/vars.yaml"
       ignore_errors: yes
       tags: always
   tasks:
@@ -63,7 +63,7 @@
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
     - name: Include LPP engine vars
-      ansible.builtin.include_vars: "input/vars.yml"
+      ansible.builtin.include_vars: "input/vars.yaml"
       ignore_errors: yes
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
@@ -92,7 +92,7 @@
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
     - name: Include LPP engine vars
-      ansible.builtin.include_vars: "input/vars.yml"
+      ansible.builtin.include_vars: "input/vars.yaml"
       ignore_errors: yes      
 
   tasks:
@@ -152,7 +152,7 @@
     - name: Include OS-specific variables
       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
     - name: Include LPP engine vars
-      ansible.builtin.include_vars: "input/vars.yml"
+      ansible.builtin.include_vars: "input/vars.yaml"
       ignore_errors: yes
       tags: always
 
@@ -215,7 +215,7 @@
     - name: Include main variables
       ansible.builtin.include_vars: "vars/main.yml"
     - name: Include LPP engine vars
-      ansible.builtin.include_vars: "input/vars.yml"
+      ansible.builtin.include_vars: "input/vars.yaml"
       ignore_errors: yes
       tags: always      
     - name: Include OS-specific variables

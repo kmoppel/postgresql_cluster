@@ -23,8 +23,7 @@
       tags: always
 
     - name: Include LPP engine vars
-      ansible.builtin.include_vars: "input/vars.yml"
-      ignore_errors: yes
+      ansible.builtin.include_vars: "input/vars.yaml"
       tags: always
 
     - name: System information
