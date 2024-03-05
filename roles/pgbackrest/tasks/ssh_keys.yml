@@ -85,6 +85,12 @@
   register: ssh_known_host_keyscan
   changed_when: false
 
+# https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_privilege_escalation.html#resolving-temporary-file-error-messages
+- name: Ensure acl package needed to set ssh privs correctly
+  ansible.builtin.package:
+    name: acl
+    state: present
+
 - name: known_hosts | add ssh public keys in "~postgres/.ssh/known_hosts" on database servers
   become: true
   become_user: postgres
