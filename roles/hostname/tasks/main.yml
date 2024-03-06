@@ -1,7 +1,7 @@
 ---
 
-- name: Set a cluster + random hostname for better visual orientation when on the node  # TODO add something to hint at pure etcd nodes
+- name: Set proj + env + cluster_ip for better visual orientation   # TODO print resident cluster names on login
   ansible.builtin.hostname:
-    name: "{{ patroni_cluster_name | replace('.', '-') | replace('_', '-') }}-{{ inventory_hostname | md5 | truncate(6, end='') }}"
+    name: "{{ lpp_project | replace('.', '-') | replace('_', '-') }}-{{ lpp_environment | replace('.', '-') | replace('_', '-')}}-{{ inventory_hostname | replace('.', '-') }}"
 
 ...
