@@ -2,6 +2,6 @@
 
 - name: Set proj + env + cluster_ip for better visual orientation   # TODO print resident cluster names on login
   ansible.builtin.hostname:
-    name: "{{ lpp_project | replace('.', '-') | replace('_', '-') }}-{{ lpp_environment | replace('.', '-') | replace('_', '-')}}-{{ inventory_hostname | replace('.', '-') }}"
+    name: "{{ lpp_environment | replace('.', '-') | replace('_', '-')}}-{{ lpp_project | replace('.', '-') | replace('_', '-') }}-{{ inventory_hostname | replace('.', '-') }}"
 
 ...
