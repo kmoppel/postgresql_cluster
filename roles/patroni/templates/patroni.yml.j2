@@ -21,8 +21,8 @@ log:
 {% endif %}
 
 restapi:
-  listen: {{ hostvars[inventory_hostname]['inventory_hostname'] }}:{{ patroni_restapi_port }}
-  connect_address: {{ hostvars[inventory_hostname]['inventory_hostname'] }}:{{ patroni_restapi_port }}
+  listen: {{ patroni_restapi_listen_addr }}:{{ patroni_restapi_port }}
+  connect_address: {{ inventory_hostname }}:{{ patroni_restapi_port }}
 #  certfile: /etc/ssl/certs/ssl-cert-snakeoil.pem
 #  keyfile: /etc/ssl/private/ssl-cert-snakeoil.key
 #  authentication:
@@ -86,31 +86,46 @@ bootstrap:
       {% for parameter in postgresql_parameters %}
         {{ parameter.option }}: {{ parameter.value }}
       {% endfor %}
-  {% if patroni_standby_cluster.host is defined and patroni_standby_cluster.host | length > 0 %}
+    {% if patroni_standby_cluster.host is defined and patroni_standby_cluster.host | length > 0 %}
     standby_cluster:
       host: {{ patroni_standby_cluster.host }}
       port: {{ patroni_standby_cluster.port }}
-    {% if patroni_standby_cluster.primary_slot_name is defined and patroni_standby_cluster.primary_slot_name | length > 0 %}
+      {% if patroni_standby_cluster.primary_slot_name is defined and patroni_standby_cluster.primary_slot_name | length > 0 %}
       primary_slot_name: {{ patroni_standby_cluster.primary_slot_name }}
-    {% endif %}
-    {% if patroni_standby_cluster.restore_command is defined and patroni_standby_cluster.restore_command | length > 0 %}
+      {% endif %}
+      {% if patroni_standby_cluster.restore_command is defined and patroni_standby_cluster.restore_command | length > 0 %}
       restore_command: {{ patroni_standby_cluster.restore_command }}
-    {% endif %}
-    {% if patroni_standby_cluster.recovery_min_apply_delay is defined and patroni_standby_cluster.recovery_min_apply_delay | length > 0 %}
+      {% endif %}
+      {% if patroni_standby_cluster.recovery_min_apply_delay is defined and patroni_standby_cluster.recovery_min_apply_delay | length > 0 %}
       recovery_min_apply_delay: {{ patroni_standby_cluster.recovery_min_apply_delay }}
+     {% endif %}
     {% endif %}
-  {% endif %}
+    {% if patroni_slots is defined and patroni_slots | length > 0 %}
+    slots:
+      {% for slot in patroni_slots %}
+      {{ slot.slot }}:
+        type: {{ slot.type }}
+        {% if slot.plugin | default('') | length > 0 %}
+        plugin: {{ slot.plugin }}
+        {% endif %}
+        {% if slot.database | default('') | length > 0 %}
+        database: {{ slot.database }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
 
 {% if postgresql_exists|bool %}
 #  initdb:  # List options to be passed on to initdb
 #    - encoding: UTF8
 #    - data-checksums
 {% endif %}
-{% if not postgresql_exists|bool and initdb_opts %}
+{% if not postgresql_exists|bool %}
   initdb:  # List options to be passed on to initdb
-  {% for opt in initdb_opts %}
-  - {{ opt }}
-  {% endfor %}
+    - encoding: {{ postgresql_encoding }}
+    - locale: {{ postgresql_locale }}
+  {% if postgresql_data_checksums|bool %}
+    - data-checksums
+  {% endif %}
 {% endif %}
 
   pg_hba:  # Add following lines to pg_hba.conf after running 'initdb'
@@ -119,8 +134,8 @@ bootstrap:
 
 
 postgresql:
-  listen: {{ hostvars[inventory_hostname]['inventory_hostname'] }},127.0.0.1:{{ postgresql_port }}
-  connect_address: {{ hostvars[inventory_hostname]['inventory_hostname'] }}:{{ postgresql_port }}
+  listen: {{ postgresql_listen_addr }}:{{ postgresql_port }}
+  connect_address: {{ inventory_hostname }}:{{ postgresql_port }}
 {% if patroni_superuser_username == 'postgres' %}
   use_unix_socket: true
 {% endif %}
@@ -209,10 +224,22 @@ watchdog:
   safety_margin: 5
 
 tags:
-  nofailover: false
-  noloadbalance: false
-  clonefrom: false
+{% if patroni_tags is defined and patroni_tags | length > 0 %}
+  {{ patroni_tags | replace(" ", "") | replace("=", ": ") | replace(",", "\n  ") }}
+{% endif %}
+{% set normalized_tags = patroni_tags | default('') | replace(" ", "") %}
+{% if 'nosync=' not in normalized_tags %}
   nosync: false
+{% endif %}
+{% if 'noloadbalance=' not in normalized_tags %}
+  noloadbalance: false
+{% endif %}
+{% if 'nofailover=' not in normalized_tags %}
+  nofailover: false
+{% endif %}
+{% if 'clonefrom=' not in normalized_tags %}
+  clonefrom: false
+{% endif %}
 
   # specify a node to replicate from (cascading replication)
 #  replicatefrom: (node name)

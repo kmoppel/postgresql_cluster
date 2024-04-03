@@ -1,0 +1,191 @@
+commit 9413e43bee0df9b1c69b147f961585226d59380e
+Author: Kaarel Moppel <kaarel.moppel@gmail.com>
+Date:   Fri Feb 23 13:50:30 2024 +0200
+
+    Add LPP include_vars separate from postgresql_cluster ones
+
+diff --git a/add_pgnode.yml b/add_pgnode.yml
+index 9cdef6b..5b2bdee 100644
+--- a/add_pgnode.yml
++++ b/add_pgnode.yml
+@@ -20,6 +20,11 @@
+     - name: Include OS-specific variables
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
++      
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
+ 
+     - name: "[Pre-Check] Checking Linux distribution"
+       ansible.builtin.fail:
+@@ -126,6 +131,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+     # if 'dcs_type' is 'consul'
+     - name: Add a nameserver entry poining to localhost for dnsmasq
+       ansible.builtin.set_fact:
+@@ -160,6 +170,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+     - role: pgbackrest
+       when: pgbackrest_install|bool
+@@ -186,6 +201,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+ 
+     - role: pgpass
+diff --git a/config_pgcluster.yml b/config_pgcluster.yml
+index 01bab73..0a46608 100644
+--- a/config_pgcluster.yml
++++ b/config_pgcluster.yml
+@@ -12,6 +12,11 @@
+     - name: Include OS-specific variables
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+     - name: '[Prepare] Set maintenance variable'
+       ansible.builtin.set_fact:
+         postgresql_cluster_maintenance: true
+@@ -93,6 +98,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+ 
+     - role: patroni/config
+@@ -117,6 +127,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   tasks:
+     - name: Stop read-only traffic
+       ansible.builtin.include_role:
+@@ -168,6 +183,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   tasks:
+     - name: Switchover Patroni leader role
+       ansible.builtin.include_role:
+@@ -225,6 +245,12 @@
+     - name: Include system variables
+       ansible.builtin.include_vars: "vars/system.yml"
+       tags: always
++
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+     # finish (info)
+     - role: deploy-finish
+diff --git a/deploy_pgcluster.yml b/deploy_pgcluster.yml
+index 1f80064..7b6221e 100644
+--- a/deploy_pgcluster.yml
++++ b/deploy_pgcluster.yml
+@@ -22,6 +22,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+     - name: System information
+       ansible.builtin.debug:
+         var: system_info
+@@ -131,6 +136,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+     - role: hostname
+     - role: add-repository
+@@ -167,6 +177,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+     - role: pgbackrest
+       when: pgbackrest_install|bool
+@@ -191,6 +206,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+   roles:
+ 
+     - role: cron
+diff --git a/etcd_cluster.yml b/etcd_cluster.yml
+index 2c251d6..416fa6e 100644
+--- a/etcd_cluster.yml
++++ b/etcd_cluster.yml
+@@ -19,6 +19,11 @@
+       ansible.builtin.include_vars: "vars/{{ ansible_os_family }}.yml"
+       tags: always
+ 
++    - name: Include LPP engine vars
++      ansible.builtin.include_vars: "input/vars.yaml"
++      ignore_errors: yes
++      tags: always
++
+     - name: Update apt cache
+       ansible.builtin.apt:
+         update_cache: true

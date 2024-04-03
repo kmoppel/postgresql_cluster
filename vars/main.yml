@@ -62,10 +62,73 @@ patroni_etcd_protocol: "" # (optional) http or https, if not specified http is u
 
 # more options you can specify in the roles/patroni/templates/patroni.yml.j2
 # https://patroni.readthedocs.io/en/latest/SETTINGS.html#etcd
+# https://patroni.readthedocs.io/en/latest/SETTINGS.html#consul
+
+# if dcs_type: "consul"
+consul_version: "1.15.8"
+consul_config_path: "/etc/consul"
+consul_configd_path: "{{ consul_config_path }}/conf.d"
+consul_data_path: "/var/lib/consul"
+consul_domain: "consul"  # Consul domain name
+consul_datacenter: "dc1"  # Datacenter label (can be specified for each host in the inventory)
+consul_disable_update_check: true  # Disables automatic checking for security bulletins and new version releases
+consul_enable_script_checks: true  # This controls whether health checks that execute scripts are enabled on this agent
+consul_enable_local_script_checks: true  # Enable them when they are defined in the local configuration files
+consul_ui: false  # Enable the consul UI?
+consul_syslog_enable: true  # Enable logging to syslog
+consul_iface: "{{ ansible_default_ipv4.interface }}"  # specify the interface name with a Private IP (ex. "enp7s0")
+# TLS
+# You can enable TLS encryption by dropping a CA certificate, server certificate, and server key in roles/consul/files/
+consul_tls_enable: false
+consul_tls_ca_crt: "ca.crt"
+consul_tls_server_crt: "server.crt"
+consul_tls_server_key: "server.key"
+# DNS
+consul_recursors: []  # List of upstream DNS servers
+consul_dnsmasq_enable: true  # Enable DNS forwarding with Dnsmasq
+consul_dnsmasq_cache: 0  # dnsmasq cache-size (0 - disable caching)
+consul_dnsmasq_servers: "{{ nameservers }}" # Upstream DNS servers used by dnsmasq
+consul_join: []  # List of LAN servers of an existing consul cluster, to join.
+# - "10.128.64.140"
+# - "10.128.64.142"
+# - "10.128.64.143"
+
+# https://developer.hashicorp.com/consul/docs/discovery/services
+consul_services:
+  - name: "{{ patroni_cluster_name }}"
+    id: "{{ patroni_cluster_name }}-master"
+    tags: ['master', 'primary']
+    port: "{{ pgbouncer_listen_port }}"  # or "{{ postgresql_port }}" if pgbouncer_install: false
+    checks:
+      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/primary", interval: "2s" }
+      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }  # comment out this check if pgbouncer_install: false
+  - name: "{{ patroni_cluster_name }}"
+    id: "{{ patroni_cluster_name }}-replica"
+    tags: ['replica']
+    port: "{{ pgbouncer_listen_port }}"
+    checks:
+      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/replica?lag={{ patroni_maximum_lag_on_replica }}", interval: "2s" }
+      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }
+#  - name: "{{ patroni_cluster_name }}"
+#    id: "{{ patroni_cluster_name }}-sync-replica"
+#    tags: ['sync-replica']
+#    port: "{{ pgbouncer_listen_port }}"
+#    checks:
+#      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/sync", interval: "2s" }
+#      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }
+#  - name: "{{ patroni_cluster_name }}"
+#    id: "{{ patroni_cluster_name }}-async-replica"
+#    tags: ['async-replica']
+#    port: "{{ pgbouncer_listen_port }}"
+#    checks:
+#      - { http: "http://{{ inventory_hostname }}:{{ patroni_restapi_port }}/async?lag={{ patroni_maximum_lag_on_replica }}", interval: "2s" }
+#      - { args: ["systemctl", "status", "pgbouncer"], interval: "5s" }
+
 
 # PostgreSQL variables
 postgresql_version: "16"
 # postgresql_data_dir: see vars/Debian.yml or vars/RedHat.yml
+postgresql_listen_addr: "0.0.0.0" # Listen on all interfaces. Or use "{{ inventory_hostname }},127.0.0.1" to listen on a specific IP address.
 postgresql_port: "5432"
 postgresql_encoding: "UTF8"  # for bootstrap only (initdb)
 postgresql_locale: "en_US.UTF-8"  # for bootstrap only (initdb)
@@ -136,7 +199,7 @@ postgresql_parameters:
   - { option: "archive_command", value: "cd ." }  # not doing anything yet with WAL-s
 #  - { option: "archive_command", value: "{{ wal_g_archive_command }}" }  # archive WAL-s using WAL-G
 #  - { option: "archive_command", value: "{{ pgbackrest_archive_command }}" }  # archive WAL-s using pgbackrest
-  - { option: "wal_level", value: "replica" }
+  - { option: "wal_level", value: "logical" }
   - { option: "wal_keep_size", value: "2GB" }
   - { option: "max_wal_senders", value: "10" }
   - { option: "max_replication_slots", value: "10" }
@@ -209,7 +272,41 @@ postgresql_pgpass:
   - "{{ inventory_hostname }}:{{ postgresql_port }}:*:{{ patroni_superuser_username }}:{{ patroni_superuser_password }}"
 #  - hostname:port:database:username:password
 
+
+# PgBouncer parameters
+pgbouncer_install: true  # or 'false' if you do not want to install and configure the pgbouncer service
+pgbouncer_processes: 1  # Number of pgbouncer processes to be used. Multiple processes use the so_reuseport option for better performance.
+pgbouncer_conf_dir: "/etc/pgbouncer"
+pgbouncer_log_dir: "/var/log/pgbouncer"
+pgbouncer_listen_addr: "0.0.0.0"
+pgbouncer_listen_port: 6432
+pgbouncer_max_client_conn: 10000
+pgbouncer_max_db_connections: 1000
+pgbouncer_max_prepared_statements: 1024
+pgbouncer_default_pool_size: 20
+pgbouncer_query_wait_timeout: 120
+pgbouncer_default_pool_mode: "session"
+pgbouncer_admin_users: "{{ patroni_superuser_username }}"  # comma-separated list of users, who are allowed to change settings
+pgbouncer_stats_users: "{{ patroni_superuser_username }}"  # comma-separated list of users who are just allowed to use SHOW command
+pgbouncer_ignore_startup_parameters: "extra_float_digits,geqo,search_path"
+pgbouncer_auth_type: "{{ postgresql_password_encryption_algorithm }}"
+pgbouncer_auth_user: true # or 'false' if you want to manage the list of users for authentication in the database via userlist.txt
+pgbouncer_auth_username: pgbouncer # user who can query the database via the user_search function
+pgbouncer_auth_password: "pgbouncer-pass" # please change password
+pgbouncer_auth_dbname: "postgres"
+pgbouncer_client_tls_sslmode: "disable"
+pgbouncer_client_tls_key_file: ""
+pgbouncer_client_tls_cert_file: ""
+
+pgbouncer_pools:
+  - { name: "postgres", dbname: "postgres", pool_parameters: "" }
+#  - { name: "mydatabase", dbname: "mydatabase", pool_parameters: "pool_size=20 pool_mode=transaction" }
+#  - { name: "", dbname: "", pool_parameters: "" }
+#  - { name: "", dbname: "", pool_parameters: "" }
+
+
 # Extended variables (optional)
+patroni_restapi_listen_addr: "0.0.0.0" # Listen on all interfaces. Or use "{{ inventory_hostname }}" to listen on a specific IP address.
 patroni_restapi_port: 8008
 patroni_ttl: 30
 patroni_loop_wait: 10
@@ -218,7 +315,7 @@ patroni_master_start_timeout: 300
 patroni_maximum_lag_on_failover: 131072 # (128kB) the maximum bytes a follower may lag to be able to participate in leader election.
 patroni_maximum_lag_on_replica: "100MB" # the maximum of lag that replica can be in order to be available for read-only queries.
 
-# https://patroni.readthedocs.io/en/latest/SETTINGS.html?highlight=callbacks#dynamic-configuration-settings
+# https://patroni.readthedocs.io/en/latest/yaml_configuration.html#postgresql
 patroni_callbacks: []
 #  - {action: "on_role_change", script: ""}
 #  - {action: "on_stop", script: ""}
@@ -236,6 +333,19 @@ patroni_standby_cluster:
 #  primary_slot_name: ""  # which slot on the remote master to use for replication (optional)
 #  restore_command: ""  # command to restore WAL records from the remote master to standby leader (optional)
 #  recovery_min_apply_delay: ""  # how long to wait before actually apply WAL records on a standby leader (optional)
+
+# Permanent replication slots.
+# These slots will be preserved during switchover/failover.
+# https://patroni.readthedocs.io/en/latest/dynamic_configuration.html
+patroni_slots: []
+#  - slot: "logical_replication_slot" # the name of the permanent replication slot.
+#    type: "logical" # the type of slot. Could be 'physical' or 'logical' (if the slot is logical, you have to define 'database' and 'plugin').
+#    plugin: "pgoutput" # the plugin name for the logical slot.
+#    database: "postgres" # the database name where logical slots should be created.
+#  - slot: "test_logical_replication_slot"
+#    type: "logical"
+#    plugin: "pgoutput"
+#    database: "test"
 
 patroni_log_destination: stderr  # or 'logfile'
 # if patroni_log_destination: logfile
@@ -337,6 +447,7 @@ pgbackrest_conf:
     - { option: "process-max", value: "4" }
     - { option: "log-level-console", value: "info" }
     - { option: "recovery-option", value: "recovery_target_action=promote" }
+    - { option: "pg1-socket-path", value: "{{ postgresql_unix_socket_dir }}" }
     - { option: "pg1-path", value: "{{ postgresql_data_dir }}" }
 #    - { option: "", value: "" }
 # (optional) dedicated backup server config (if "repo_host" is set)
